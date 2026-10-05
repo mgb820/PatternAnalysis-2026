@@ -11,7 +11,6 @@ from dataset import load_graph
 data, num_classes = load_graph()
 
 # ---------- 1. Data audit ----------
-print(data)
 print("Nodes:", data.num_nodes, "| Features:", data.num_node_features,
       "| Classes:", num_classes)
 print("Edge entries (PyG stores both directions):", data.edge_index.size(1))
@@ -86,3 +85,22 @@ print("Parameters:", sum(p.numel() for p in model.parameters()))
 print(f"Train time for {epochs} epochs: {train_time:.1f}s ({train_time / epochs:.3f}s/epoch)")
 if device.type == "cuda":
     print("Peak GPU memory (MB):", round(torch.cuda.max_memory_allocated() / 1e6, 1))
+
+from sklearn.metrics import roc_auc_score
+
+with torch.no_grad():
+    val_probs = F.softmax(model(x)[val_idx], dim=1)
+val_conf, val_pred = val_probs.max(1)
+
+# Can confidence detect errors? (errors are the positive class)
+auroc = roc_auc_score((~correct).cpu().numpy(), (1 - conf).cpu().numpy())
+print("Error-detection AUROC (test):", round(auroc, 3))
+
+# Reject rule: threshold chosen on VALIDATION, reported on TEST
+val_correct = val_pred == y[val_idx]
+for t in [0.5, 0.6, 0.7, 0.8, 0.9]:
+    vm, tm = val_conf >= t, conf >= t
+    if vm.sum() == 0 or tm.sum() == 0:
+        continue
+    print(f"thr {t}: val acc {val_correct[vm].float().mean():.3f} (cov {vm.float().mean():.2f}) | "
+          f"test acc {correct[tm].float().mean():.3f} (cov {tm.float().mean():.2f})")
