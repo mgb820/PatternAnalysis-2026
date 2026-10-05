@@ -4,14 +4,28 @@ Setting: TRANSDUCTIVE node classification. The whole graph (all node features
 and edges) is visible during training, but labels of validation/test nodes are
 never used in the loss. Evaluation uses only the held-out node indices.
 """
+import os
+from types import SimpleNamespace
+import numpy as np
 import torch
-from torch_geometric.datasets import FacebookPagePage
 
 
 def load_graph(root="data"):
-    """Load the Facebook Page-Page graph. Returns (data, num_classes)."""
-    dataset = FacebookPagePage(root=f"{root}/FacebookPagePage")
-    return dataset[0], dataset.num_classes
+    """Load the Facebook Page-Page graph from facebook.npz."""
+    path = os.path.join(root, "FacebookPagePage", "raw", "facebook.npz")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Place facebook.npz at {path}")
+    raw = np.load(path)  # the pickled 'page_name' array is never read
+    x = torch.from_numpy(raw["X"]).float()                    # (22470, 128)
+    y = torch.from_numpy(raw["y"]).long()                     # (22470,)
+    edge_index = torch.from_numpy(
+        np.stack([raw["edges_x"], raw["edges_y"]])
+    ).long()                                                  # (2, 342004), both directions
+    data = SimpleNamespace(
+        x=x, y=y, edge_index=edge_index,
+        num_nodes=x.size(0), num_node_features=x.size(1),
+    )
+    return data, int(y.max()) + 1
 
 
 def normalized_adjacency(edge_index, num_nodes):
