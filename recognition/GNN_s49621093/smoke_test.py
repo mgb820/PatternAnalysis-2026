@@ -3,18 +3,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import f1_score
-from torch_geometric.datasets import FacebookPagePage
 
 torch.manual_seed(0)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-dataset = FacebookPagePage(root="./data/FacebookPagePage")
-data = dataset[0]
+from dataset import load_graph
+data, num_classes = load_graph()
 
 # ---------- 1. Data audit ----------
 print(data)
 print("Nodes:", data.num_nodes, "| Features:", data.num_node_features,
-      "| Classes:", dataset.num_classes)
+      "| Classes:", num_classes)
 print("Edge entries (PyG stores both directions):", data.edge_index.size(1))
 
 counts = torch.bincount(data.y)
@@ -45,7 +44,7 @@ class MLP(nn.Module):
         x = F.dropout(F.relu(self.fc1(x)), self.p, self.training)
         return self.fc2(x)
 
-model = MLP(data.num_node_features, 64, dataset.num_classes).to(device)
+model = MLP(data.num_node_features, 64, num_classes).to(device)
 x, y = data.x.to(device), data.y.to(device)
 opt = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
 
