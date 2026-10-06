@@ -1,9 +1,4 @@
-"""Data loading, graph preprocessing and leakage-free splitting.
-
-Setting: TRANSDUCTIVE node classification. The whole graph (all node features
-and edges) is visible during training, but labels of validation/test nodes are
-never used in the loss. Evaluation uses only the held-out node indices.
-"""
+"""Data loading, graph preprocessing and leakage-free splitting."""
 import os
 from types import SimpleNamespace
 import numpy as np
