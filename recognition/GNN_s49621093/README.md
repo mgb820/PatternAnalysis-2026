@@ -10,9 +10,7 @@ The algorithm is a 2-layer GCN. Each layer averages a node's features with its n
 
 ### 1. User Need, Scope & Acceptance Criteria
 
-**User:** A web platform or data research team that needs to categorise Facebook pages automatically, with low-confidence predictions routed to a human reviewer.
-
-**Scope:** Semi-supervised, 4-class node classification on the Facebook Page-Page graph, comparing a multi-layer GNN with an MLP baseline on identical splits.
+A possible user for this model can be a web platform or data research team that needs to categorise Facebook pages automatically, with low-confidence predictions routed to a human reviewer. The project involves a semi-supervised, 4-class node classification on the Facebook Page-Page graph, comparing a multi-layer GNN with an MLP baseline on identical splits.
 
 **Acceptance criteria:**
 
@@ -25,15 +23,9 @@ The algorithm is a 2-layer GCN. Each layer averages a node's features with its n
 
 ### 2. Model Choice & Course Concepts
 
-**Data:** Facebook Large Page-Page Network [1]: 22,470 pages, mutual-like edges, 128-dimensional features, 4 categories. The task is transductive: the whole graph is visible in training, but only training labels enter the loss. Nodes are split 60/20/20, stratified by class with a fixed seed. Validation data is used for model selection and the threshold. The test data is only for final reporting.
-
-**Model:** A 2-layer GCN [2] with hidden size 64 and dropout 0.5, in PyTorch (Normal difficulty). The baseline is an MLP of the same size using node features only.
-
-**Concepts:**
-- **Message passing:** each GCN layer averages a node's features with its neighbours', which should help because linked pages tend to share a category.
-- **Normalised adjacency with self-loops:** keeps a node's own features and stops high-degree pages dominating.
-- **Shallow depth and dropout:** shallow depth avoids over-smoothing, and dropout limits overfitting.
-- **Softmax probability:** serves as the confidence signal for the reject rule.
+The data is the Facebook Large Page-Page Network, which has 22,470 pages with mutual-like edges. Each page has 128-dimensional features and are one of four categories. The task is transductive, which means that the whole graph is visible in training, but test labels are not used. Nodes are split 60/20/20 (train, validation, test), stratified by class with a fixed seed. Validation data is used for model selection and the threshold, and the test data is used for final reporting.
+The model is a 2-layer GCN1 with hidden size 64 and dropout 0.5 implemented with PyTorch (Normal difficulty). The baseline is an MLP of the same size using node features only.
+Each GCN layer averages a node's features with its neighbours', which should help because linked pages tend to share a category. The normalised adjacency with self-loops keeps a node's own features and stops high-degree pages dominating. Shallow depth avoids over-smoothing, and dropout limits overfitting. Softmax probability is the confidence signal for the reject rule.
 
 ### 3. Preliminary Feasibility Evidence
 
@@ -55,18 +47,10 @@ The pipeline loads, trains and evaluates end to end, with headroom for a GNN to 
 
 ### 4. Risks, Budget & Fallback
 
-**Risks:**
-- Label leakage through the graph (the loss uses training indices only)
-- The GNN failing to beat the MLP or being more overconfident (this is what the criteria test)
-- Class imbalance (stratified splits, macro-F1)
-- Over-smoothing (2-3 layers)
-- Limited GPU access (runs kept short)
-
-**Budget:** The graph and models are small. The MLP trains in 3.4 s with 49.8 MB peak GPU memory, and I expect the GCN to need seconds to a few minutes per run and well under 500 MB. I will run several short jobs on one GPU and measure peak memory and timing directly.
-
-**Next experiment:** Implement the GCN, train it with the MLP's loop and split, and compare macro-F1, confidence gap, AUROC and the reject rule.
-
-**Fallback:** If the GCN does not improve on the MLP, report that and analyse why (for example, accuracy on high- versus low-homophily nodes).
+The risks for the GNN implementation include (1) Label leakage through the graph. (2) The GNN failing to beat the MLP or being more overconfident. (3) Class imbalance (stratified splits, macro-F1). (4) Over-smoothing (which is why we will use only 2-3 layers). (5) Limited GPU access.
+As for the budget, the MLP trains in 3.4 s with 49.8 MB peak GPU memory, so the GCN is expected to need no more than a couple of minutes per run and well under 500 MB. Several jobs on one GPU and the job’s peak memory and timing will be measured.
+Next task is to Implement the GCN, train it with the MLP's loop and split, and compare macro-F1, confidence gap, AUROC and the reject rule.
+If the GCN does not improve on the MLP, that will be reported and analysed (for example, accuracy on high- versus low-homophily nodes).
 
 ---
 
