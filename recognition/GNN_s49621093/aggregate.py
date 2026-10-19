@@ -32,7 +32,11 @@ for label, key in [("Reject rule: test accuracy", "test_accuracy"),
         cells.append(cell(vals) if vals else "n/a")
     print(f"| {label} | {cells[0]} | {cells[1]} |")
 
-for m in ("MLP", "GCN"):
-    diffs = [r["GCN"]["macro_f1"] - r["MLP"]["macro_f1"] for r in runs] if m == "GCN" else None
-    if diffs:
-        print("\nGCN minus MLP macro-F1 per seed:", [round(x, 3) for x in diffs])
+print("\n| Class | MLP precision | MLP recall | GCN precision | GCN recall |")
+print("|---|---|---|---|---|")
+for c in range(4):
+    row = [str(c)]
+    for m in ("MLP", "GCN"):
+        for key in ("per_class_precision", "per_class_recall"):
+            row.append(cell([r[m][key][c] for r in runs]))
+    print("| " + " | ".join(row) + " |")
