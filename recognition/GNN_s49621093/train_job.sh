@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=gnn_train
-#SBATCH --partition=comp3710
-#SBATCH --account=comp3710
+#SBATCH --partition=a100
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --time=00:30:00
