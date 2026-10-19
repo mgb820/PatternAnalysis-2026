@@ -163,10 +163,12 @@ def inference_ms(model, d, runs=20):
 def plot_history(histories, path):
     """Training/validation loss and validation accuracy curves for all models."""
     fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(11, 4))
+    colours = {"MLP": "tab:blue", "GCN": "tab:orange"}
     for name, h in histories.items():
-        ax_loss.plot(h["train_loss"], label=f"{name} train")
-        ax_loss.plot(h["val_loss"], "--", label=f"{name} val")
-        ax_acc.plot(h["val_acc"], label=name)
+        c = colours[name]
+        ax_loss.plot(h["train_loss"], color=c, label=f"{name} train")
+        ax_loss.plot(h["val_loss"], "--", color=c, label=f"{name} val")
+        ax_acc.plot(h["val_acc"], color=c, label=name)
     ax_loss.set(xlabel="Epoch", ylabel="Cross-entropy loss", title="Loss")
     ax_acc.set(xlabel="Epoch", ylabel="Validation accuracy", title="Validation accuracy")
     ax_loss.legend()
