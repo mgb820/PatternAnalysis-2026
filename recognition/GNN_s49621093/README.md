@@ -95,7 +95,8 @@ $$\hat{A} = D^{-1/2}(A + I)D^{-1/2}$$
 
 ## Results
 
-(add results after running the actual thing)
+<img width="1650" height="600" alt="training_curves" src="https://github.com/user-attachments/assets/d9d5b989-c70a-4d13-9967-b57bc81b3eac" />
+
 
 ---
 
