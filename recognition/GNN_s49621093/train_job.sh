@@ -9,4 +9,7 @@
 source /home/Student/s4962109/miniconda3/etc/profile.d/conda.sh
 conda activate torch
 cd ~/PatternAnalysis-2026/recognition/GNN_s49621093
-python train.py --epochs 200 --out outputs/seed0
+for s in 0 1 2; do
+    echo "=== seed $s ==="
+    python train.py --seed $s --split-seed $s --out outputs/seed$s
+done
