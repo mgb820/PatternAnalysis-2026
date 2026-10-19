@@ -95,14 +95,101 @@ $$\hat{A} = D^{-1/2}(A + I)D^{-1/2}$$
 
 ## Results
 
-<img width="1650" height="600" alt="training_curves" src="https://github.com/user-attachments/assets/d9d5b989-c70a-4d13-9967-b57bc81b3eac" />
+All results are mean ± standard deviation over 3 runs (seeds 0-2, which vary
+both the model initialisation and the train/validation/test split). Both models
+have 8,516 parameters, use the same splits and the same training setup (Adam,
+learning rate 0.01, weight decay 5e-4, dropout 0.5, 200 epochs, best epoch
+chosen on validation accuracy).
 
+The MLP scores lower here than in the preliminary smoke test in the Feasibility Review (0.793 accuracy), which used a plain random split and dropout on the hidden layer only; the final models use the stratified split and apply dropout to the input features as well.
+
+### GCN vs MLP Baseline
+
+| Metric | MLP | GCN |
+|---|---|---|
+| Test accuracy | 0.742 ± 0.005 | 0.913 ± 0.005 |
+| Test macro-F1 | 0.718 ± 0.004 | 0.907 ± 0.004 |
+| Class AUROC (one-vs-rest) | 0.929 ± 0.003 | 0.985 ± 0.001 |
+
+Per-class precision and recall (classes are indexed 0-3 as in the dataset
+labels; class 3 is the smallest class, about 15% of pages):
+
+| Class | MLP precision | MLP recall | GCN precision | GCN recall |
+|---|---|---|---|---|
+| Class 0: Companies | 0.831 ± 0.012 | 0.778 ± 0.008 | 0.917 ± 0.002 | 0.902 ± 0.006 |
+| Class 1: Governmental Organisations | 0.640 ± 0.007 | 0.892 ± 0.012 | 0.894 ± 0.009 | 0.947 ± 0.010 |
+| Class 2: Politicians | 0.799 ± 0.013 | 0.689 ± 0.021 | 0.942 ± 0.008 | 0.928 ± 0.014 |
+| Class 3: Television Shows | 0.827 ± 0.041 | 0.452 ± 0.021 | 0.893 ± 0.010 | 0.834 ± 0.005 |
+
+The GCN improves macro-F1 by 0.187, 0.187 and 0.192 in the three runs, about
+40 times the run-to-run spread, so the gain is not down to seed luck. It
+improves every class on both precision and recall. The largest gain is recall
+on television shows, the smallest class: the MLP finds fewer than half of them
+(0.452) while the GCN finds 83%. The MLP's low precision on governmental
+organisations (0.640) alongside its high recall (0.892) suggests it assigns
+pages from other categories to that class when unsure; a confusion matrix
+would confirm this.
+
+![Training curves](figures/training_curves.png)
+
+*Training curves (seed 0). Both models converge by about epoch 75 with no sign
+of overfitting. Training loss is higher than validation loss because dropout is
+active during training and off during evaluation.*
+
+### Confidence and Reject-Option Analysis
+
+| Metric | MLP | GCN |
+|---|---|---|
+| Mean confidence, correct predictions | 0.699 ± 0.003 | 0.885 ± 0.001 |
+| Mean confidence, wrong predictions | 0.452 ± 0.001 | 0.626 ± 0.001 |
+| Confidence gap | 0.246 ± 0.004 | 0.259 ± 0.002 |
+| Error-detection AUROC | 0.843 ± 0.004 | 0.852 ± 0.002 |
+| Expected calibration error (ECE) | 0.108 ± 0.000 | 0.050 ± 0.005 |
+| Reject rule: test accuracy above threshold | 0.950 ± 0.004 | 0.947 ± 0.003 |
+| Reject rule: test coverage | 0.467 ± 0.007 | 0.906 ± 0.015 |
+
+The reject-rule threshold is the lowest confidence whose validation accuracy
+reaches 95%, chosen on the validation set. Accuracy and coverage above it are
+then measured on the test set.
+
+In both models, confidence is a useful signal for errors (error-detection AUROC
+0.84-0.85, well above the 0.5 of chance). The GCN is only slightly better at
+flagging its own mistakes (gap 0.259 vs 0.246) and is more confident when it is
+wrong (0.626 vs 0.452), but it is better calibrated (ECE 0.050 vs 0.108). The
+practical benefit is coverage: at about the same 95% accuracy, the GCN can
+automate about 91% of pages, against 47% for the MLP.
+
+### Resource Profile
+
+| Metric | MLP | GCN |
+|---|---|---|
+| Parameters | 8,516 | 8,516 |
+| Training time, 200 epochs (s) | 0.7 | 0.7-0.8 |
+| Inference, one pass over the graph (ms) | 0.173 ± 0.008 | 0.422 ± 0.004 |
+| Peak GPU memory (MB) | 74.6 | 97.2 |
+
+Measured on a single NVIDIA A100 on Rangpur. Both models are far inside the
+acceptance limits (5 minutes, 2 GB). The GCN needs about 2.4 times the
+inference time and 23 MB more memory.
+
+### Acceptance Criteria Outcome
+
+| # | Criterion | Result | Outcome |
+|---|---|---|---|
+| 1 | GCN macro-F1 at least 0.05 above the MLP's | +0.187 to +0.192 | Met |
+| 2 | Confidence gap at least 0.25 and error AUROC at least 0.85 | 0.259 and 0.852 | Met, narrowly |
+| 3 | At least 95% test accuracy above the threshold, with at least 60% coverage | 0.947 accuracy, 0.906 coverage | Coverage met; accuracy narrowly missed |
+| 4 | Under 5 minutes and under 2 GB | about 1 s, 97 MB | Met |
+
+Criterion 3 narrowly misses on accuracy (0.947 vs 0.95) because the threshold
+is chosen to reach 95% on the validation set, and accuracy drops slightly on
+unseen test data.
 
 ---
 
 ## Artificial Intelligence Usage Disclosure
 
-I used Claude Sonnet 5.5 to explain concepts and to help write technical parts of the code. I verified its output through my own research and by running jobs to test the results.
+I used Claude Sonnet 5.5 to explain concepts and to help write technical parts of the code in dataset.py, modules.py, and train.py. I verified its output through my own research and by running jobs to test the results.
 
 ## References
 
