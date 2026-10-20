@@ -77,6 +77,36 @@ by the course coordinators because the original download host was unavailable.
 
 All splits and model initialisation use a fixed seed (0).
 
+### Running
+
+Run everything from `recognition/GNN_s49621093/`, after placing `facebook.npz` as
+described under Data. The scripts run in this order:
+
+```bash
+# 1. Train the MLP baseline and the GCN, and save weights, curves and metrics.
+#    Results in the report use seeds 0, 1 and 2 (--seed sets the model
+#    initialisation and --split-seed sets the train/validation/test split).
+python train.py --seed 0 --split-seed 0 --out outputs/seed0
+python train.py --seed 1 --split-seed 1 --out outputs/seed1
+python train.py --seed 2 --split-seed 2 --out outputs/seed2
+
+# 2. Average the results over the three runs (mean ± standard deviation).
+python aggregate.py "outputs/seed*"
+
+# 3. Load the trained seed-0 models, then draw the confusion matrices,
+#    t-SNE plot and error-rate figure, and write the failure cases.
+python predict.py --run-dir outputs/seed0
+```
+
+| Script | What it does | Output |
+|---|---|---|
+| `train.py` | Trains both models, picks the best epoch on validation accuracy, evaluates on the test split | `outputs/seed*/` containing `MLP.pt`, `GCN.pt`, `results.json`, `training_curves.png` |
+| `aggregate.py` | Reads each `results.json` and prints the comparison tables | Markdown tables on screen |
+| `predict.py` | Loads saved weights, re-evaluates on the test split, makes figures and the failure-case analysis | `figures/*.png` and `outputs/failure_cases.md` |
+
+`train.py` takes a few seconds on a GPU. The weights (`*.pt`) and the `outputs/`
+folder are git-ignored, so run `train.py` before `predict.py`.
+
 ---
 
 ## Data and Preprocessing
