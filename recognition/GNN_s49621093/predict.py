@@ -118,5 +118,105 @@ def main():
     print(f"Saved figures in '{args.fig_dir}/'")
 
 
+def load_page_names(data_root):
+    """Page names stored in facebook.npz (a pickled object array, hence allow_pickle).
+    The file comes from the course coordinators."""
+    path = os.path.join(data_root, "FacebookPagePage", "raw", "facebook.npz")
+    return np.load(path, allow_pickle=True)["page_name"]
+
+
+def neighbour_stats(edge_index, y, num_classes):
+    """Per node: degree, neighbour counts per TRUE class, and node homophily
+    (share of neighbours with the same true class). Self-loops are ignored.
+    These use true labels, so they are for post-hoc analysis only, never training."""
+    src, dst = edge_index
+    keep = src != dst
+    src, dst = src[keep], dst[keep]
+    onehot = F.one_hot(y, num_classes).float()
+    counts = torch.zeros(y.size(0), num_classes, device=y.device)
+    counts = counts.index_add(0, src, onehot[dst])
+    degree = counts.sum(1)
+    same = counts.gather(1, y[:, None]).squeeze(1)
+    return degree, counts, same / degree.clamp(min=1)
+
+
+def select_cases(t, counts_t, threshold):
+    """Pick up to five representative GCN errors on the test set, one per failure type."""
+    wrong = t["gcn_pred"] != t["y"]
+    rows = np.arange(len(wrong))
+    deg = t["deg"]
+    share_pred = counts_t[rows, t["gcn_pred"]] / np.maximum(deg, 1)
+    specs = [
+        ("Confident error (would be automated)", wrong & (t["gcn_conf"] >= threshold), t["gcn_conf"]),
+        ("Misled by its neighbours", wrong & (counts_t.argmax(1) == t["gcn_pred"]) & (deg >= 5), share_pred),
+        ("Low-degree page", wrong & (deg <= 3), t["gcn_conf"]),
+        ("Uncertain error (routed to a human)", wrong & (t["gcn_conf"] < threshold), t["gcn_conf"]),
+        ("Graph hurt: the MLP was right", wrong & (t["mlp_pred"] == t["y"]), t["gcn_conf"]),
+    ]
+    used, cases = set(), []
+    for title, mask, key in specs:
+        mask = mask.copy()
+        for u in used:
+            mask[u] = False
+        if mask.any():
+            i = int(np.argmax(np.where(mask, key, -np.inf)))
+            used.add(i)
+            cases.append((title, i))
+    return cases
+
+
+def case_markdown(title, i, t, counts_t, names, node_ids, threshold):
+    """One failure case as a short markdown block."""
+    neigh = ", ".join(f"{CLASS_NAMES[c]} {int(counts_t[i, c])}"
+                      for c in range(len(CLASS_NAMES)) if counts_t[i, c] > 0)
+    routed = "yes" if t["gcn_conf"][i] < threshold else "no"
+    return (f"**{title}**\n"
+            f"- Page: {names[node_ids[i]]}\n"
+            f"- True category: {CLASS_NAMES[t['y'][i]]}\n"
+            f"- GCN predicted: {CLASS_NAMES[t['gcn_pred'][i]]} (confidence {t['gcn_conf'][i]:.2f}); "
+            f"MLP predicted: {CLASS_NAMES[t['mlp_pred'][i]]} (confidence {t['mlp_conf'][i]:.2f})\n"
+            f"- Links: {int(t['deg'][i])}; neighbours' true categories: {neigh}\n"
+            f"- Sent to a human at threshold {threshold:.2f}: {routed}\n")
+
+
+HOMOPHILY_BINS = [("below 0.5", 0.0, 0.5), ("0.5 to 0.8", 0.5, 0.8), ("0.8 to 1.0", 0.8, 1.01)]
+DEGREE_BINS = [("1 to 3", 1, 4), ("4 to 10", 4, 11), ("11 or more", 11, 1e9)]
+
+
+def error_table(t, key, bins, label):
+    """Markdown table of MLP and GCN error rates for groups of test pages."""
+    lines = [f"| {label} | Test pages | MLP error rate | GCN error rate |", "|---|---|---|---|"]
+    for name, lo, hi in bins:
+        m = (t[key] >= lo) & (t[key] < hi)
+        if m.any():
+            lines.append(f"| {name} | {int(m.sum())} ({m.mean():.0%}) | "
+                         f"{(t['mlp_pred'][m] != t['y'][m]).mean():.3f} | "
+                         f"{(t['gcn_pred'][m] != t['y'][m]).mean():.3f} |")
+    return lines
+
+
+def plot_error_by_homophily(t, path):
+    """Bar chart: test error rate vs how many of a page's neighbours share its category."""
+    labels, mlp_err, gcn_err = [], [], []
+    for name, lo, hi in HOMOPHILY_BINS:
+        m = (t["hom"] >= lo) & (t["hom"] < hi)
+        if m.any():
+            labels.append(f"{name}\n(n={int(m.sum())})")
+            mlp_err.append((t["mlp_pred"][m] != t["y"][m]).mean())
+            gcn_err.append((t["gcn_pred"][m] != t["y"][m]).mean())
+    x, w = np.arange(len(labels)), 0.38
+    fig, ax = plt.subplots(figsize=(6.5, 4.5))
+    ax.bar(x - w / 2, mlp_err, w, label="MLP", color="tab:blue")
+    ax.bar(x + w / 2, gcn_err, w, label="GCN", color="tab:orange")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set(xlabel="Share of a page's neighbours with the same true category",
+           ylabel="Test error rate", title="Error rate by neighbourhood agreement")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    
+
 if __name__ == "__main__":
     main()
