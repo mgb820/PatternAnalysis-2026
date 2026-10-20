@@ -93,17 +93,21 @@ def main():
     parser.add_argument("--run-dir", default="outputs/seed0",
                         help="folder written by train.py (holds MLP.pt, GCN.pt, results.json)")
     parser.add_argument("--fig-dir", default="figures", help="where to save the figures")
+    parser.add_argument("--md-out", default="outputs/failure_cases.md",
+                        help="markdown file for the failure-case text")
     args = parser.parse_args()
 
     os.makedirs(args.fig_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(args.md_out) or ".", exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     d, models, saved = load_run(args.run_dir, device)
 
     test_idx = d["test_idx"]
     y_test = d["y"][test_idx].cpu().numpy()
-    preds, embeddings = {}, {}
+    preds, embeddings, probs_all = {}, {}, {}
     for name, model in models.items():
         probs, emb = predict(model, d)
+        probs_all[name] = probs
         y_pred = probs.argmax(1)[test_idx].cpu().numpy()
         preds[name] = y_pred
         embeddings[name] = emb[test_idx].cpu().numpy()
@@ -115,7 +119,35 @@ def main():
 
     plot_confusion(y_test, preds, os.path.join(args.fig_dir, "confusion_matrices.png"))
     plot_tsne(embeddings, y_test, os.path.join(args.fig_dir, "tsne_embeddings.png"))
-    print(f"Saved figures in '{args.fig_dir}/'")
+
+    # ---- failure analysis: GCN errors on the test set ----
+    names = load_page_names(saved["args"]["data_root"])
+    degree, counts, hom = neighbour_stats(d["edge_index"], d["y"], d["num_classes"])
+    gcn_conf, gcn_pred = probs_all["GCN"].max(1)
+    mlp_conf, mlp_pred = probs_all["MLP"].max(1)
+    t = {k: v[test_idx].cpu().numpy() for k, v in dict(
+        y=d["y"], gcn_pred=gcn_pred, gcn_conf=gcn_conf, mlp_pred=mlp_pred,
+        mlp_conf=mlp_conf, deg=degree, hom=hom).items()}
+    counts_t = counts[test_idx].cpu().numpy()
+    node_ids = test_idx.cpu().numpy()
+
+    rule = saved["results"]["GCN"]["reject_rule"]
+    threshold = rule["threshold"] if rule else 0.5      # threshold chosen on validation data
+
+    md = [f"## Failure cases (GCN, test set, run `{args.run_dir}`)\n",
+          f"Reject threshold (chosen on validation data): {threshold:.2f}\n"]
+    for title, i in select_cases(t, counts_t, threshold):
+        md.append(case_markdown(title, i, t, counts_t, names, node_ids, threshold))
+    md += ["### Error rate by neighbourhood agreement\n"]
+    md += error_table(t, "hom", HOMOPHILY_BINS, "Share of neighbours with the same category") + [""]
+    md += ["### Error rate by number of links\n"]
+    md += error_table(t, "deg", DEGREE_BINS, "Links") + [""]
+    text = "\n".join(md)
+    print("\n" + text)
+    with open(args.md_out, "w", encoding="utf-8") as f:
+        f.write(text)
+    plot_error_by_homophily(t, os.path.join(args.fig_dir, "error_by_homophily.png"))
+    print(f"Saved figures in '{args.fig_dir}/' and failure cases in '{args.md_out}'")
 
 
 def load_page_names(data_root):
@@ -216,7 +248,7 @@ def plot_error_by_homophily(t, path):
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    
+
 
 if __name__ == "__main__":
     main()
