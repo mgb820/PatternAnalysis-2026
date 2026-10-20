@@ -127,8 +127,7 @@ improves every class on both precision and recall. The largest gain is recall
 on television shows, the smallest class: the MLP finds fewer than half of them
 (0.452) while the GCN finds 83%. The MLP's low precision on governmental
 organisations (0.640) alongside its high recall (0.892) suggests it assigns
-pages from other categories to that class when unsure; a confusion matrix
-would confirm this.
+pages from other categories to that class when unsure;
 
 ![Training curves](figures/training_curves.png)
 
@@ -184,6 +183,40 @@ inference time and 23 MB more memory.
 Criterion 3 narrowly misses on accuracy (0.947 vs 0.95) because the threshold
 is chosen to reach 95% on the validation set, and accuracy drops slightly on
 unseen test data.
+
+### Error Analysis: Confusion Matrices
+
+![Confusion matrices](figures/confusion_matrices.png)
+
+*Row-normalised confusion matrices on the test set (seed 0), with counts in
+brackets. Each row shows where the pages of one true category were predicted.*
+
+The MLP's low precision on governmental organisations (0.640) comes from
+pages of other categories being assigned to it: of its 1,909 governmental
+predictions, 313 were politicians, 212 were companies and 150 were television
+shows. The GCN reduces the politicians-to-governmental errors from 313 to 56.
+Television shows are the hardest class for the MLP, which finds 46% of them,
+against 84% for the GCN. The GCN's remaining errors are small and spread out:
+companies predicted as governmental organisations (80), television shows
+predicted as companies (69), and politicians predicted as governmental
+organisations (56). Politicians and governmental organisations overlap in
+practice (some politicians' pages are labelled governmental), so some of these
+errors reflect ambiguous categories as well as model mistakes.
+
+### Embedding Visualisation
+
+![t-SNE of hidden-layer embeddings](figures/tsne_embeddings.png)
+
+*t-SNE of the last hidden layer for 3,000 random test pages (seed 0), coloured
+by true category. Each panel is a separate t-SNE run, so positions and
+distances are not comparable across panels.*
+
+The MLP's embeddings form many small, fragmented groups with a mixed region in
+the middle. The GCN's form broader regions that are mostly one category each,
+with overlap along the boundaries between categories, such as governmental
+organisations and politicians, which agrees with the confusion matrix.
+t-SNE preserves local neighbourhoods but not global distances, so this is a
+qualitative picture and not a measurement.
 
 ---
 
