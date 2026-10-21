@@ -1,8 +1,20 @@
 # Node Classification of Facebook Pages with a Graph Convolutional Network
 
 ## Overview
-Given a graph with Facebook Pages as nodes and edges between pages as likes, the problem is trying to classify these pages into 4 distinct categories. I am using a 2-layer GCN to classify these pages.
-The algorithm is a 2-layer GCN. Each layer averages a node's features with its neighbours', which would help with classification because linked pages tend to share a category. The normalised adjacency with self-loops keeps a node's own features and stops high-degree pages dominating. Shallow depth avoids over-smoothing, and dropout limits overfitting. Softmax probability is the confidence signal for the reject rule.
+
+**The problem.** The data is a network of 22,470 verified Facebook pages, where two pages are linked if they like each other and each page has a 128-dimensional feature vector built from its description. The task is to classify each page into one of four categories: companies, governmental organisations, politicians or television shows. It is semi-supervised and transductive: the whole graph is visible during training, but only the labels of training pages are used. The setting is an automatic page-categorisation tool for a web platform, where confident predictions are automated and uncertain ones go to a human reviewer, so the project asks how accurate the classifier is and also whether its confidence can be trusted to decide what to automate.
+
+**How it works.** The model is a 2-layer graph convolutional network (GCN) [2]. Each layer replaces a page's features with a weighted average over itself and its linked pages, followed by a learned transformation and a ReLU:
+
+$$H^{(l+1)} = \mathrm{ReLU}\left(\hat{A}\,H^{(l)}\,W^{(l)}\right), \qquad \hat{A} = D^{-1/2}(A + I)D^{-1/2}$$
+
+This should help because linked pages tend to share a category (88.5% of links in this graph join pages of the same category). Adding self-loops lets each page keep its own features, and the symmetric normalisation stops pages with many links from dominating. Two layers means each page sees its neighbours and their neighbours, which keeps the model shallow and avoids over-smoothing, and dropout limits overfitting. The final layer outputs a probability for each category, and the highest probability is the model's confidence. A reject rule sends any page below a confidence threshold, chosen on validation data, to a human. The GCN is compared against an MLP baseline of the same size that uses each page's own features and ignores the links, trained and evaluated on identical splits.
+
+On the held-out test pages (mean of three runs), the GCN reaches 0.913 accuracy and 0.907 macro-F1, against 0.742 and 0.718 for the MLP. At about 95% accuracy on automated predictions, it can automate about 91% of pages, against 47% for the MLP. The remaining errors include confident ones in neighbourhoods that agree with each other but belong to another category, which the confidence threshold cannot catch (see Failure Case Analysis).
+
+![t-SNE of hidden-layer embeddings](figures/tsne_embeddings.png)
+
+*t-SNE of the last hidden layer for 3,000 random test pages (seed 0), coloured by true category; MLP on the left, GCN on the right. The GCN's embeddings form broad, mostly single-category regions, while the MLP's are fragmented and mixed. Each panel is a separate t-SNE run, so positions and distances are not comparable across panels, and the legend applies to both.*
 
 ---
 
