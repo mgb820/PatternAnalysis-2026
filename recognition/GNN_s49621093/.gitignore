@@ -1,0 +1,10 @@
+@"
+data/
+outputs/
+__pycache__/
+*.pt
+*.pth
+*.npz
+*.out
+*.err
+"@ | Out-File -Encoding ascii .gitignore
