@@ -82,8 +82,10 @@ Experiments were run on a single NVIDIA A100 (Rangpur) with the `torch` conda en
 
 ### Data
 
-The Facebook Page-Page graph is read from `facebook.npz`, which was supplied
-by the course coordinators because the original download host was unavailable.
+The Facebook Page-Page graph is read from `facebook.npz`, which was supplied by the
+course coordinators because the original download host was unavailable. Place it at
+`recognition/GNN_s49621093/data/FacebookPagePage/raw/facebook.npz`. The `data/`
+folder is git-ignored, so the file is not part of the repository.
 
 ### Reproducibility
 
