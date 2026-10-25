@@ -89,7 +89,8 @@ folder is git-ignored, so the file is not part of the repository.
 
 ### Reproducibility
 
-All splits and model initialisation use a fixed seed (0).
+Splits and model initialisation are seeded. The results use seeds 0, 1 and 2 (the
+default is 0). Results can differ slightly between CPU and GPU runs.
 
 ### Running
 
