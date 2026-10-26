@@ -343,7 +343,7 @@ above.
 
 ## Artificial Intelligence Usage Disclosure
 
-I used Claude Sonnet 5.5 to explain concepts and to help write technical parts of the code in dataset.py, modules.py, and train.py. I verified its output through my own research and by running jobs to test the results.
+I used Claude Sonnet 5.5 to explain concepts and to help write and verify technical parts of the code in dataset.py, modules.py, train.py, and predict.py that used libraries which I was not familiar with, including parts of the code that needed knowledge that were not taught in lectures / needed as prerequisite for the course. I verified its output through my own research and by running jobs on rangpur to test whether its output matched with expected output.
 
 ## References
 
